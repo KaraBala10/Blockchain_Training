@@ -10,24 +10,25 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import json
 from pathlib import Path
 
 from web3 import Web3
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # يتجه إلى جذر المشروع
-
-# تحميل المتغيرات من ملف .env
-
 # إعدادات Web3 وContract
-CONTRACT_ADDRESS = "0x4c589f6d0c264A67C5ed6991BDb709AeE7C23f28"
+CONTRACT_ADDRESS = "0x39A845AB904c541836BCF1a3AaCc365c0C43EFbC"
 CONTRACT_PATH = "/home/karabala/my_repos/Blockchain_Training/project/build/contracts/VirtualCurrency.json"
-# باقي الإعدادات...
-AUTH_USER_MODEL = "api.CustomUser"
 
+with open(CONTRACT_PATH) as f:
+    contract_json = json.load(f)
+    CONTRACT_ABI = contract_json["abi"]
+AUTH_USER_MODEL = "api.CustomUser"
+CENTRAL_ACCOUNT_PRIVATE_KEY = (
+    "0xa73b7e3cb494cccf5dc667fd9e37772e4b2de1c85f65c9d7b3e1d0bced9e34c6"
+)
 WEB3_PROVIDER = "http://127.0.0.1:8545"
 web3 = Web3(Web3.HTTPProvider(WEB3_PROVIDER))
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 

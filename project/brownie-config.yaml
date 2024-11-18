@@ -1,5 +1,7 @@
 networks:
   development:
+    gas_price: "0.1 gwei"
+    base_fee_per_gas: "0 gwei"  # Optional: Ensure EIP-1559 compatibility
     cmd_settings:
       cmd: ganache-cli
       port: 8545

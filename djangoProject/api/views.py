@@ -1,8 +1,7 @@
-import json
 import random
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,22 +10,18 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from web3 import Web3
 
 from .models import CustomUser
-from .utils import perform_transfer
+from .utils import mint_tokens, perform_transfer
 
 web3 = Web3(Web3.HTTPProvider(settings.WEB3_PROVIDER))
-contract_path = "/home/karabala/my_repos/Blockchain_Training/project/build/contracts/VirtualCurrency.json"
 
-with open(contract_path) as f:
-    contract_json = json.load(f)
-    contract_abi = contract_json["abi"]
-
+CONTRACT_ABI = settings.CONTRACT_ABI
 CONTRACT_ADDRESS = settings.CONTRACT_ADDRESS
 
-contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+CONTRACT = web3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])  # Allow unauthenticated access
+@permission_classes([AllowAny])
 def register_view(request):
     username = request.data.get("username")
     password = request.data.get("password")
@@ -38,27 +33,22 @@ def register_view(request):
         )
 
     try:
-        # Check if username already exists
         if CustomUser.objects.filter(username=username).exists():
             return Response(
                 {"error": "Username already exists."},
                 status=HTTP_400_BAD_REQUEST,
             )
 
-        # Create the user
         user = CustomUser.objects.create_user(username=username, password=password)
 
-        # Generate a random VC balance (e.g., between 100 and 1000)
         random_vc_balance = random.randint(100, 1000)
 
-        # Perform the token transfer from the central account to the new user
         tx_hash = perform_transfer(
             private_key=settings.CENTRAL_ACCOUNT_PRIVATE_KEY,
             to_address=user.wallet_address,
-            amount=random_vc_balance * (10**18),  # Assuming VC has 18 decimals
+            amount=random_vc_balance,
         )
 
-        # Create a token for the user
         token, created = Token.objects.get_or_create(user=user)
 
         return Response(
@@ -67,7 +57,7 @@ def register_view(request):
                 "username": user.username,
                 "initial_vc_balance": random_vc_balance,
                 "tx_hash": tx_hash,
-                "token": token.key,  # Return the token upon registration
+                "token": token.key,
             },
             status=HTTP_200_OK,
         )
@@ -82,7 +72,7 @@ def balance_view(request):
         user = request.user
         ether_balance = web3.eth.get_balance(user.wallet_address)
         readable_ether_balance = Web3.from_wei(ether_balance, "ether")
-        token_balance = contract.functions.balanceOf(user.wallet_address).call()
+        token_balance = CONTRACT.functions.balanceOf(user.wallet_address).call()
         readable_token_balance = Web3.from_wei(token_balance, "ether")
 
         return Response(
@@ -104,21 +94,26 @@ def balance_view(request):
 def transfer_view(request):
     to_username = request.data.get("to_username")
     amount = request.data.get("amount")
-
     if not to_username or not amount:
         return Response(
             {"error": "Recipient username and amount are required."},
             status=HTTP_400_BAD_REQUEST,
         )
-
     try:
         recipient = CustomUser.objects.get(username=to_username)
         to_address = recipient.wallet_address
-        amount_in_wei = int(float(amount) * (10**18))
-
         sender = request.user
-        tx_hash = perform_transfer(sender.private_key, to_address, amount_in_wei)
-
+        from_address = sender.wallet_address
+        sender_private_key = sender.private_key
+        amount_in_wei = int(float(amount) * (10**18))
+        central_private_key = settings.CENTRAL_ACCOUNT_PRIVATE_KEY
+        tx_hash = perform_transfer(
+            central_private_key,
+            from_address,
+            to_address,
+            amount_in_wei,
+            sender_private_key,
+        )
         return Response(
             {"message": "Transaction successful!", "tx_hash": tx_hash},
             status=HTTP_200_OK,
@@ -134,13 +129,7 @@ def transfer_view(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def profile_view(request):
-    return Response({"wallet_address": request.user.wallet_address}, status=HTTP_200_OK)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])  # Only admin users can access this endpoint
+@permission_classes([AllowAny])
 def list_accounts_view(request):
     """
     Retrieves a list of all user accounts with their ETH and VC balances.
@@ -153,7 +142,7 @@ def list_accounts_view(request):
             ether_balance = web3.eth.get_balance(user.wallet_address)
             readable_ether_balance = Web3.from_wei(ether_balance, "ether")
 
-            token_balance = contract.functions.balanceOf(user.wallet_address).call()
+            token_balance = CONTRACT.functions.balanceOf(user.wallet_address).call()
             readable_token_balance = Web3.from_wei(token_balance, "ether")
 
             accounts.append(
@@ -189,7 +178,7 @@ def custom_login_view(request):
         return Response(
             {
                 "message": "Login successful!",
-                "token": token.key,  # Provide the token to the client
+                "token": token.key,
                 "user_id": user.id,
                 "username": user.username,
             },
@@ -197,3 +186,50 @@ def custom_login_view(request):
         )
     else:
         return Response({"message": "Invalid credentials."}, status=400)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def mint_tokens_view(request):
+    print(f"Authenticated user: {request.user}")
+    print(f"Token used: {request.auth}")
+
+    recipient_username = request.data.get("recipient_username")
+    amount = request.data.get("amount")
+
+    if not recipient_username or not amount:
+        return Response(
+            {"error": "Recipient username and amount are required."},
+            status=HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        recipient = CustomUser.objects.get(username=recipient_username)
+        recipient_address = recipient.wallet_address
+        amount_in_vc = float(amount)
+
+        tx_hash = mint_tokens(
+            private_key=settings.CENTRAL_ACCOUNT_PRIVATE_KEY,
+            recipient_address=recipient_address,
+            amount_in_vc=amount_in_vc,
+        )
+
+        return Response(
+            {
+                "message": "Tokens minted successfully!",
+                "tx_hash": tx_hash,
+                "recipient_username": recipient_username,
+                "amount": amount_in_vc,
+            },
+            status=HTTP_200_OK,
+        )
+    except CustomUser.DoesNotExist:
+        return Response(
+            {"error": "Recipient user does not exist."},
+            status=HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Minting failed: {str(e)}"},
+            status=HTTP_400_BAD_REQUEST,
+        )

@@ -11,7 +11,7 @@ web3 = Web3(Web3.HTTPProvider(settings.WEB3_PROVIDER))
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
         if not username:
-            raise ValueError("يجب تحديد اسم المستخدم.")
+            raise ValueError("A username must be provided.")
         account = web3.eth.account.create(secrets.token_hex(16))
         extra_fields.setdefault("wallet_address", account.address)
         extra_fields.setdefault("private_key", account.key.hex())
@@ -24,9 +24,9 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         if extra_fields.get("is_staff") is not True:
-            raise ValueError("المشرف يجب أن يكون لديه is_staff=True.")
+            raise ValueError("A superuser must have is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
-            raise ValueError("المشرف يجب أن يكون لديه is_superuser=True.")
+            raise ValueError("A superuser must have is_superuser=True.")
         return self.create_user(username, password, **extra_fields)
 
 
