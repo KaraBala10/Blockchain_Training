@@ -1,0 +1,12 @@
+networks:
+  development:
+    cmd_settings:
+      cmd: ganache-cli
+      port: 8545
+    host: http://127.0.0.1
+    port: 8545
+    network_id: 1337
+  ganache:
+    host: http://127.0.0.1
+    port: 8545
+    network_id: 1337
