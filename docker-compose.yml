@@ -1,0 +1,30 @@
+services:
+  ganache:
+    image: trufflesuite/ganache:v7.9.2
+    ports:
+      - "8545:8545"
+    networks:
+      - ganache-network
+    command: ["--hardfork", "berlin", "--gasPrice", "0"]
+
+  django:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./djangoProject:/djangoProject
+    ports:
+      - "5555:8000"
+    container_name: djangoproject
+    depends_on:
+      - ganache
+    networks:
+      - ganache-network
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+networks:
+  ganache-network:
+    driver: bridge

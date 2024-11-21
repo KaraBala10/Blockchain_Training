@@ -15,9 +15,8 @@ from pathlib import Path
 
 from web3 import Web3
 
-# إعدادات Web3 وContract
-CONTRACT_ADDRESS = "0x39A845AB904c541836BCF1a3AaCc365c0C43EFbC"
-CONTRACT_PATH = "/home/karabala/my_repos/Blockchain_Training/project/build/contracts/VirtualCurrency.json"
+CONTRACT_ADDRESS = "0x044749C70cB77Fb93b98B7D985E091446943f90b"
+CONTRACT_PATH = "/project/build/contracts/VirtualCurrency.json"
 
 with open(CONTRACT_PATH) as f:
     contract_json = json.load(f)
@@ -26,7 +25,7 @@ AUTH_USER_MODEL = "api.CustomUser"
 CENTRAL_ACCOUNT_PRIVATE_KEY = (
     "0xa73b7e3cb494cccf5dc667fd9e37772e4b2de1c85f65c9d7b3e1d0bced9e34c6"
 )
-WEB3_PROVIDER = "http://127.0.0.1:8545"
+WEB3_PROVIDER = "http://ganache:8545"
 web3 = Web3(Web3.HTTPProvider(WEB3_PROVIDER))
 
 BASE_DIR = Path(__file__).resolve().parent.parent

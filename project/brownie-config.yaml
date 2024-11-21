@@ -2,13 +2,17 @@ networks:
   development:
     gas_price: "0.1 gwei"
     base_fee_per_gas: "0 gwei"  # Optional: Ensure EIP-1559 compatibility
-    cmd_settings:
-      cmd: ganache-cli
-      port: 8545
-    host: http://127.0.0.1
+    host: http://ganache
     port: 8545
     network_id: 1337
+    cmd_settings:
+      accounts: 10              # Number of accounts to create
+      default_balance: 1000     # Set the initial balance to 1000 ETH per account
+      hardfork: berlin        # Specify the Ethereum hardfork
+      mnemonic: brownie         # Use a deterministic mnemonic for account generation
+      gasLimit: 12000000        # Increase gas limit
+      port: 8545
   ganache:
-    host: http://127.0.0.1
+    host: http://ganache
     port: 8545
     network_id: 1337
